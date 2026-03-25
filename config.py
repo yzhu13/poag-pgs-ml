@@ -14,7 +14,7 @@ from sklearn.svm import SVC
 from sklearn.linear_model import LogisticRegression
 
 # ---------------------------------------------------------------------------
-# Paths â set DATA_DIR to the folder containing your input Excel files
+# Paths — set DATA_DIR to the folder containing your input Excel files
 # ---------------------------------------------------------------------------
 DATA_DIR   = Path("data")
 OUTPUT_DIR = Path("outputs")

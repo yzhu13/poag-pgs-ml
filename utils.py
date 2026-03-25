@@ -5,8 +5,8 @@ Shared helper functions used across analysis scripts.
 
 Functions
 ---------
-build_pipeline          Build a sklearn Pipeline (impute â scale â clf).
-bootstrap_evaluate      Bootstrap cross-validation returning mean Â± SEM metrics.
+build_pipeline          Build a sklearn Pipeline (impute → scale → clf).
+bootstrap_evaluate      Bootstrap cross-validation returning mean ± SEM metrics.
 train_and_predict       Fit a pipeline on training data, return predictions on test data.
 plot_auc_bars           Grouped bar chart of AUC by feature set for a single model.
 plot_auc_grouped        Side-by-side bar chart comparing multiple models across PRS sets.
@@ -109,7 +109,7 @@ def bootstrap_evaluate(X, y, model, n_bootstraps=10, test_size=0.2):
             "mean":  round(mean, 4),
             "std":   round(std,  4),
             "sem":   round(sem,  4),
-            "ci95":  f"{mean:.3f} Â± {1.96 * sem:.3f}",
+            "ci95":  f"{mean:.3f} ± {1.96 * sem:.3f}",
         }
     return summary
 
@@ -162,7 +162,7 @@ def external_test_metrics(y_test, y_pred, y_prob):
 
 def plot_auc_bars(results_df, model_name, feature_order, output_path=None,
                   ylim=(0.6, 1.0)):
-    """Bar chart of AUC (mean Â± SEM) for a single model across feature sets.
+    """Bar chart of AUC (mean ± SEM) for a single model across feature sets.
 
     Parameters
     ----------
@@ -188,7 +188,7 @@ def plot_auc_bars(results_df, model_name, feature_order, output_path=None,
     ax.set_xticklabels(df["Feature Set"], rotation=30, ha="right")
     ax.set_ylim(*ylim)
     ax.set_ylabel("AUC")
-    ax.set_title(f"{model_name} â AUC (mean Â± SEM)")
+    ax.set_title(f"{model_name} — AUC (mean ± SEM)")
     pad = (ylim[1] - ylim[0]) * 0.02
     for i, (val, err) in enumerate(zip(y, yerr)):
         ax.text(i, val + err + pad, f"{val:.2f}", ha="center", va="bottom",
@@ -240,7 +240,7 @@ def plot_auc_grouped(results_df, feature_order, model_names, output_path=None,
     ax.set_xticks(x)
     ax.set_xticklabels(feature_order, rotation=30, ha="right")
     ax.set_ylim(*ylim)
-    ax.set_ylabel("AUC (mean Â± SEM)")
+    ax.set_ylabel("AUC (mean ± SEM)")
     ax.legend(loc="upper left", frameon=True)
     ax.grid(axis="y", alpha=0.3, linewidth=0.8)
     plt.tight_layout()
