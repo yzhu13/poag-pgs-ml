@@ -27,19 +27,37 @@ from sklearn.impute import SimpleImputer
 
 import os as _os
 
-# ── Configure your project root ─────────────────────────────────────────
-# Set BASE to the folder containing input-data/, output excel data/, figure/
-# Default: auto-detected as the repo root (2 levels above this script).
-BASE = _os.path.normpath(
-    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..")
-)
-# To override manually, uncomment:
-# BASE = r"C:\path	o\your\project"   # Windows
-# BASE = "/path/to/your/project"          # macOS / Linux
-TRAIN_F = fr"{BASE}\input-data\POAAGG_cohort\271_training_cohort_4_new_PRS_cleaned.xlsx"
-SUSP_F  = fr"{BASE}\input-data\POAAGG_cohort\1013_testing_cohort_only_suspect_cleaned.xlsx"
-OUT_XL  = fr"{BASE}\output excel data"
-OUT_FIG = fr"{BASE}\figure"
+# ═══════════════════════════════════════════════════════════════
+#  PATH CONFIGURATION  —  edit BASE if your data is elsewhere
+# ═══════════════════════════════════════════════════════════════
+#  Expected folder layout (relative to BASE):
+#    data/poaagg/   271_training_cohort_4_new_PRS_cleaned.xlsx
+#                   1013_testing_cohort_only_suspect_cleaned.xlsx
+#    data/pmbb/     PMBB_3.0_pheno_covars_noPOAAGG.csv
+#                   PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt
+#                   PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt
+#                   PMBB_949_POAG_IOP_CDR_Freeze3.csv   (asymmetry script only)
+#    outputs/tables/   ← Excel files written here
+#    outputs/figures/  ← PNG / PDF figures written here
+# ────────────────────────────────────────────────────────────────
+BASE = _os.path.dirname(_os.path.abspath(__file__))
+# To override:  BASE = r"C:\your\path"   (Windows)
+#               BASE = "/your/path"        (macOS / Linux)
+
+POAAGG_DIR = _os.path.join(BASE, "data", "poaagg")
+PMBB_DIR   = _os.path.join(BASE, "data", "pmbb")
+OUT_XL     = _os.path.join(BASE, "outputs", "tables")
+OUT_FIG    = _os.path.join(BASE, "outputs", "figures")
+_os.makedirs(OUT_XL,  exist_ok=True)
+_os.makedirs(OUT_FIG, exist_ok=True)
+
+TRAIN_F  = _os.path.join(POAAGG_DIR, "271_training_cohort_4_new_PRS_cleaned.xlsx")
+SUSP_F   = _os.path.join(POAAGG_DIR, "1013_testing_cohort_only_suspect_cleaned.xlsx")
+PMBB_PHE = _os.path.join(PMBB_DIR,   "PMBB_3.0_pheno_covars_noPOAAGG.csv")
+PMBB_616 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt")
+PMBB_526 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt")
+PMBB_IOP_CDR = _os.path.join(PMBB_DIR, "PMBB_949_POAG_IOP_CDR_Freeze3.csv")
+# ═══════════════════════════════════════════════════════════════
 
 LABEL = "CaseCtrl"
 
@@ -188,7 +206,7 @@ print(quint_df.to_string(index=False))
 # =============================================================
 print("\nSaving Excel ...")
 with pd.ExcelWriter(
-        fr"{OUT_XL}\Table_Suspects_AllModels_ClinicalCorrelations.xlsx",
+        _os.path.join(OUT_XL, "Table_Suspects_AllModels_ClinicalCorrelations.xlsx"),
         engine="openpyxl") as w:
 
     # Pivot: rows=FeatureSet×Model, cols=Outcome, values=r (p)
@@ -294,9 +312,9 @@ for ax, (out_label, col) in zip(axes4a, OUTCOMES.items()):
 
 # suptitle removed per journal style
 
-fig4a.savefig(fr"{OUT_FIG}\Figure_4A_MLP_Quintile_LinePlot.png",
+fig4a.savefig(_os.path.join(OUT_FIG, "Figure_4A_MLP_Quintile_LinePlot.png"),
               bbox_inches="tight", dpi=300)
-fig4a.savefig(fr"{OUT_FIG}\Figure_4A_MLP_Quintile_LinePlot.pdf",
+fig4a.savefig(_os.path.join(OUT_FIG, "Figure_4A_MLP_Quintile_LinePlot.pdf"),
               bbox_inches="tight", dpi=300)
 plt.close(fig4a)
 print("  Figure 4A saved.")
@@ -350,9 +368,9 @@ for ax, (out_label, col) in zip(axes4b, OUTCOMES.items()):
 
 # suptitle removed per journal style
 
-fig4b.savefig(fr"{OUT_FIG}\Figure_4B_MLP_ECDF_LowVsHigh.png",
+fig4b.savefig(_os.path.join(OUT_FIG, "Figure_4B_MLP_ECDF_LowVsHigh.png"),
               bbox_inches="tight", dpi=300)
-fig4b.savefig(fr"{OUT_FIG}\Figure_4B_MLP_ECDF_LowVsHigh.pdf",
+fig4b.savefig(_os.path.join(OUT_FIG, "Figure_4B_MLP_ECDF_LowVsHigh.pdf"),
               bbox_inches="tight", dpi=300)
 plt.close(fig4b)
 print("  Figure 4B saved.")
@@ -455,9 +473,9 @@ for ci, (out_label, col) in enumerate(OUTCOMES.items()):
 
 # suptitle removed per journal style
 
-fig4c.savefig(fr"{OUT_FIG}\Figure_4_Combined.png",
+fig4c.savefig(_os.path.join(OUT_FIG, "Figure_4_Combined.png"),
               bbox_inches="tight", dpi=300)
-fig4c.savefig(fr"{OUT_FIG}\Figure_4_Combined.pdf",
+fig4c.savefig(_os.path.join(OUT_FIG, "Figure_4_Combined.pdf"),
               bbox_inches="tight", dpi=300)
 plt.close(fig4c)
 print("  Combined Figure 4 saved.")
@@ -506,9 +524,9 @@ for ax_s, (out_label, col) in zip(axes_s, OUTCOMES.items()):
                       color="white" if abs(r_v) > vmax * 0.5 else "black")
 
 # suptitle removed per journal style
-fig_s.savefig(fr"{OUT_FIG}\SF6A_SuppFig_Suspects_AllModels_Heatmap.png",
+fig_s.savefig(_os.path.join(OUT_FIG, "SF6A_SuppFig_Suspects_AllModels_Heatmap.png"),
               bbox_inches="tight", dpi=300)
-fig_s.savefig(fr"{OUT_FIG}\SF6A_SuppFig_Suspects_AllModels_Heatmap.pdf",
+fig_s.savefig(_os.path.join(OUT_FIG, "SF6A_SuppFig_Suspects_AllModels_Heatmap.pdf"),
               bbox_inches="tight", dpi=300)
 plt.close(fig_s)
 print("  Supplemental heatmap saved.")
@@ -562,9 +580,9 @@ for ri, (fs_name, cfg) in enumerate(FEATURE_SETS.items()):
         ax_sc.spines["right"].set_visible(False)
 
 # suptitle removed per journal style
-fig_sc.savefig(fr"{OUT_FIG}\SF6B_SuppFig_Suspects_MLP_Scatter.png",
+fig_sc.savefig(_os.path.join(OUT_FIG, "SF6B_SuppFig_Suspects_MLP_Scatter.png"),
                bbox_inches="tight", dpi=300)
-fig_sc.savefig(fr"{OUT_FIG}\SF6B_SuppFig_Suspects_MLP_Scatter.pdf",
+fig_sc.savefig(_os.path.join(OUT_FIG, "SF6B_SuppFig_Suspects_MLP_Scatter.pdf"),
                bbox_inches="tight", dpi=300)
 plt.close(fig_sc)
 print("  Supplemental scatter plots saved.")

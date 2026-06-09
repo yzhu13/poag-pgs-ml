@@ -29,26 +29,39 @@ from sklearn.metrics import (roc_auc_score, accuracy_score,
 import warnings
 warnings.filterwarnings("ignore")
 
-# ── Paths ────────────────────────────────────────────────────
 import os as _os
 
-# ── Configure your project root ─────────────────────────────────────────
-# Set BASE to the folder containing input-data/, output excel data/, figure/
-# Default: auto-detected as the repo root (2 levels above this script).
-BASE = _os.path.normpath(
-    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..")
-)
-# To override manually, uncomment:
-# BASE = r"C:\path	o\your\project"   # Windows
-# BASE = "/path/to/your/project"          # macOS / Linux
-TRAIN_F  = fr"{BASE}\input-data\POAAGG_cohort\271_training_cohort_4_new_PRS_cleaned.xlsx"
-SUSP_F   = fr"{BASE}\input-data\POAAGG_cohort\1013_testing_cohort_only_suspect_cleaned.xlsx"
-PMBB_PHE = fr"{BASE}\input-data\PMBB_external\PMBB_3.0_pheno_covars_for_Yan_noPOAAGG_updated_June8.csv"
-PMBB_616 = fr"{BASE}\input-data\PMBB_external\PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt"
-PMBB_526 = fr"{BASE}\input-data\PMBB_external\PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt"
-FIG_2A   = fr"{BASE}\5-18-revision-for-submission\Figures\figure\Figure 2\Fig2A_SNP_chromosome_barchart.png"
-OUT_XL   = fr"{BASE}\output excel data"
-OUT_FIG  = fr"{BASE}\5-18-revision-for-submission\Figures\figure"
+# ═══════════════════════════════════════════════════════════════
+#  PATH CONFIGURATION  —  edit BASE if your data is elsewhere
+# ═══════════════════════════════════════════════════════════════
+#  Expected folder layout (relative to BASE):
+#    data/poaagg/   271_training_cohort_4_new_PRS_cleaned.xlsx
+#                   1013_testing_cohort_only_suspect_cleaned.xlsx
+#    data/pmbb/     PMBB_3.0_pheno_covars_noPOAAGG.csv
+#                   PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt
+#                   PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt
+#                   PMBB_949_POAG_IOP_CDR_Freeze3.csv   (asymmetry script only)
+#    outputs/tables/   ← Excel files written here
+#    outputs/figures/  ← PNG / PDF figures written here
+# ────────────────────────────────────────────────────────────────
+BASE = _os.path.dirname(_os.path.abspath(__file__))
+# To override:  BASE = r"C:\your\path"   (Windows)
+#               BASE = "/your/path"        (macOS / Linux)
+
+POAAGG_DIR = _os.path.join(BASE, "data", "poaagg")
+PMBB_DIR   = _os.path.join(BASE, "data", "pmbb")
+OUT_XL     = _os.path.join(BASE, "outputs", "tables")
+OUT_FIG    = _os.path.join(BASE, "outputs", "figures")
+_os.makedirs(OUT_XL,  exist_ok=True)
+_os.makedirs(OUT_FIG, exist_ok=True)
+
+TRAIN_F  = _os.path.join(POAAGG_DIR, "271_training_cohort_4_new_PRS_cleaned.xlsx")
+SUSP_F   = _os.path.join(POAAGG_DIR, "1013_testing_cohort_only_suspect_cleaned.xlsx")
+PMBB_PHE = _os.path.join(PMBB_DIR,   "PMBB_3.0_pheno_covars_noPOAAGG.csv")
+PMBB_616 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt")
+PMBB_526 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt")
+PMBB_IOP_CDR = _os.path.join(PMBB_DIR, "PMBB_949_POAG_IOP_CDR_Freeze3.csv")
+# ═══════════════════════════════════════════════════════════════
 
 TRAIN_PGS = {
     "POAAGG PGS": "POAAGG PGS",
@@ -251,7 +264,7 @@ pmbb_df = pd.DataFrame(pmbb_rows)
 # =============================================================
 print("\nSaving Excel ...")
 with pd.ExcelWriter(
-        fr"{OUT_XL}\Table_Training_5x20CV_PGSonly.xlsx",
+        _os.path.join(OUT_XL, "Table_Training_5x20CV_PGSonly.xlsx"),
         engine="openpyxl") as w:
     for metric in ["AUC","Accuracy","F1","Sensitivity","Specificity"]:
         sub = cv_df[cv_df["Metric"]==metric]
@@ -261,7 +274,7 @@ with pd.ExcelWriter(
     cv_df.to_excel(w, sheet_name="Full_Results", index=False)
 
 with pd.ExcelWriter(
-        fr"{OUT_XL}\Table_PMBB_External_5x20CV_PGSonly.xlsx",
+        _os.path.join(OUT_XL, "Table_PMBB_External_5x20CV_PGSonly.xlsx"),
         engine="openpyxl") as w:
     pmbb_df.to_excel(w, sheet_name="PMBB_AFR", index=False)
 print("  Excel saved.")
@@ -455,9 +468,9 @@ auc_bar_panel(
 panel_label(ax_d, "D", dx=-0.10, dy=1.08)
 
 # ── save combined ────────────────────────────────────────────
-fig.savefig(fr"{OUT_FIG}\Figure_2_Combined.pdf",
+fig.savefig(_os.path.join(OUT_FIG, "Figure_2_Combined.pdf"),
             bbox_inches="tight", dpi=300)
-fig.savefig(fr"{OUT_FIG}\Figure_2_Combined.png",
+fig.savefig(_os.path.join(OUT_FIG, "Figure_2_Combined.png"),
             bbox_inches="tight", dpi=300)
 plt.close(fig)
 print("  Figure 2 combined saved.")
@@ -488,8 +501,8 @@ patches_b2 = [mpatches.Patch(color=GROUP_COLORS[g], label=l, alpha=0.75)
               for g, l in [("GLA","Cases"),("CON","Controls"),("SUS","Suspects")]]
 axes_b2[-1].legend(handles=patches_b2, fontsize=7.5, frameon=False, loc="lower left")
 fig_b.suptitle("Figure 2B — PGS Distributions Across Groups", fontsize=11, fontweight="bold")
-fig_b.savefig(fr"{OUT_FIG}\Figure_2B_Violin.pdf", bbox_inches="tight", dpi=300)
-fig_b.savefig(fr"{OUT_FIG}\Figure_2B_Violin.png", bbox_inches="tight", dpi=300)
+fig_b.savefig(_os.path.join(OUT_FIG, "Figure_2B_Violin.pdf"), bbox_inches="tight", dpi=300)
+fig_b.savefig(_os.path.join(OUT_FIG, "Figure_2B_Violin.png"), bbox_inches="tight", dpi=300)
 plt.close(fig_b)
 print("  Figure 2B saved.")
 
@@ -502,8 +515,8 @@ auc_bar_panel(
     xlabel="PGS (standalone, no age/sex)",
     ylim=(0.35, 0.70),
 )
-fig_c.savefig(fr"{OUT_FIG}\Figure_2C_Training_AUC.pdf", bbox_inches="tight", dpi=300)
-fig_c.savefig(fr"{OUT_FIG}\Figure_2C_Training_AUC.png", bbox_inches="tight", dpi=300)
+fig_c.savefig(_os.path.join(OUT_FIG, "Figure_2C_Training_AUC.pdf"), bbox_inches="tight", dpi=300)
+fig_c.savefig(_os.path.join(OUT_FIG, "Figure_2C_Training_AUC.png"), bbox_inches="tight", dpi=300)
 plt.close(fig_c)
 print("  Figure 2C saved.")
 
@@ -516,8 +529,8 @@ auc_bar_panel(
     xlabel="PGS (standalone, no age/sex)",
     ylim=(0.35, 0.70),
 )
-fig_d.savefig(fr"{OUT_FIG}\Figure_2D_PMBB_AUC.pdf", bbox_inches="tight", dpi=300)
-fig_d.savefig(fr"{OUT_FIG}\Figure_2D_PMBB_AUC.png", bbox_inches="tight", dpi=300)
+fig_d.savefig(_os.path.join(OUT_FIG, "Figure_2D_PMBB_AUC.pdf"), bbox_inches="tight", dpi=300)
+fig_d.savefig(_os.path.join(OUT_FIG, "Figure_2D_PMBB_AUC.png"), bbox_inches="tight", dpi=300)
 plt.close(fig_d)
 print("  Figure 2D saved.")
 

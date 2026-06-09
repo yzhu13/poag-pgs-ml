@@ -29,22 +29,37 @@ from sklearn.metrics import roc_auc_score
 
 import os as _os
 
-# ── Configure your project root ─────────────────────────────────────────
-# Set BASE to the folder containing input-data/, output excel data/, figure/
-# Default: auto-detected as the repo root (2 levels above this script).
-BASE = _os.path.normpath(
-    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..")
-)
-# To override manually, uncomment:
-# BASE = r"C:\path	o\your\project"   # Windows
-# BASE = "/path/to/your/project"          # macOS / Linux
-TRAIN_F = fr"{BASE}\input-data\POAAGG_cohort\271_training_cohort_4_new_PRS_cleaned.xlsx"
-SUSP_F  = fr"{BASE}\input-data\POAAGG_cohort\1013_testing_cohort_only_suspect_cleaned.xlsx"
-PMBB_F  = fr"{BASE}\input-data\PMBB_external\PMBB_949_POAG_IOP_CDR_Freeze3.csv"
-PMBB_MAIN_F = fr"{BASE}\input-data\PMBB_external\PMBB_3.0_pheno_covars_for_Yan_noPOAAGG_updated_June8.csv"
-PGS616_F    = fr"{BASE}\input-data\PMBB_external\PMBBv3_GRS_MEGA_616snps.sscore_withSTDscore.txt"
-PGS526_F    = fr"{BASE}\input-data\PMBB_external\PMBBv3_GRS_QUANT_526snps.sscore_withSTDscore.txt"
-OUT_XL  = fr"{BASE}\output excel data\Table_Figure5_Asymmetry.xlsx"
+# ═══════════════════════════════════════════════════════════════
+#  PATH CONFIGURATION  —  edit BASE if your data is elsewhere
+# ═══════════════════════════════════════════════════════════════
+#  Expected folder layout (relative to BASE):
+#    data/poaagg/   271_training_cohort_4_new_PRS_cleaned.xlsx
+#                   1013_testing_cohort_only_suspect_cleaned.xlsx
+#    data/pmbb/     PMBB_3.0_pheno_covars_noPOAAGG.csv
+#                   PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt
+#                   PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt
+#                   PMBB_949_POAG_IOP_CDR_Freeze3.csv   (asymmetry script only)
+#    outputs/tables/   ← Excel files written here
+#    outputs/figures/  ← PNG / PDF figures written here
+# ────────────────────────────────────────────────────────────────
+BASE = _os.path.dirname(_os.path.abspath(__file__))
+# To override:  BASE = r"C:\your\path"   (Windows)
+#               BASE = "/your/path"        (macOS / Linux)
+
+POAAGG_DIR = _os.path.join(BASE, "data", "poaagg")
+PMBB_DIR   = _os.path.join(BASE, "data", "pmbb")
+OUT_XL     = _os.path.join(BASE, "outputs", "tables")
+OUT_FIG    = _os.path.join(BASE, "outputs", "figures")
+_os.makedirs(OUT_XL,  exist_ok=True)
+_os.makedirs(OUT_FIG, exist_ok=True)
+
+TRAIN_F  = _os.path.join(POAAGG_DIR, "271_training_cohort_4_new_PRS_cleaned.xlsx")
+SUSP_F   = _os.path.join(POAAGG_DIR, "1013_testing_cohort_only_suspect_cleaned.xlsx")
+PMBB_PHE = _os.path.join(PMBB_DIR,   "PMBB_3.0_pheno_covars_noPOAAGG.csv")
+PMBB_616 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt")
+PMBB_526 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt")
+PMBB_IOP_CDR = _os.path.join(PMBB_DIR, "PMBB_949_POAG_IOP_CDR_Freeze3.csv")
+# ═══════════════════════════════════════════════════════════════
 
 LABEL      = "CaseCtrl"
 N_SPLITS   = 5

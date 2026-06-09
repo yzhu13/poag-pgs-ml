@@ -34,18 +34,37 @@ from sklearn.metrics import roc_auc_score
 
 import os as _os
 
-# ── Configure your project root ─────────────────────────────────────────
-# Set BASE to the folder containing input-data/, output excel data/, figure/
-# Default: auto-detected as the repo root (2 levels above this script).
-BASE = _os.path.normpath(
-    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..")
-)
-# To override manually, uncomment:
-# BASE = r"C:\path	o\your\project"   # Windows
-# BASE = "/path/to/your/project"          # macOS / Linux
-TRAIN_F = fr"{BASE}\input-data\POAAGG_cohort\271_training_cohort_4_new_PRS_cleaned.xlsx"
-OUT_XL  = fr"{BASE}\output excel data"
-OUT_FIG = fr"{BASE}\figure\Figure 3 and SF2"
+# ═══════════════════════════════════════════════════════════════
+#  PATH CONFIGURATION  —  edit BASE if your data is elsewhere
+# ═══════════════════════════════════════════════════════════════
+#  Expected folder layout (relative to BASE):
+#    data/poaagg/   271_training_cohort_4_new_PRS_cleaned.xlsx
+#                   1013_testing_cohort_only_suspect_cleaned.xlsx
+#    data/pmbb/     PMBB_3.0_pheno_covars_noPOAAGG.csv
+#                   PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt
+#                   PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt
+#                   PMBB_949_POAG_IOP_CDR_Freeze3.csv   (asymmetry script only)
+#    outputs/tables/   ← Excel files written here
+#    outputs/figures/  ← PNG / PDF figures written here
+# ────────────────────────────────────────────────────────────────
+BASE = _os.path.dirname(_os.path.abspath(__file__))
+# To override:  BASE = r"C:\your\path"   (Windows)
+#               BASE = "/your/path"        (macOS / Linux)
+
+POAAGG_DIR = _os.path.join(BASE, "data", "poaagg")
+PMBB_DIR   = _os.path.join(BASE, "data", "pmbb")
+OUT_XL     = _os.path.join(BASE, "outputs", "tables")
+OUT_FIG    = _os.path.join(BASE, "outputs", "figures")
+_os.makedirs(OUT_XL,  exist_ok=True)
+_os.makedirs(OUT_FIG, exist_ok=True)
+
+TRAIN_F  = _os.path.join(POAAGG_DIR, "271_training_cohort_4_new_PRS_cleaned.xlsx")
+SUSP_F   = _os.path.join(POAAGG_DIR, "1013_testing_cohort_only_suspect_cleaned.xlsx")
+PMBB_PHE = _os.path.join(PMBB_DIR,   "PMBB_3.0_pheno_covars_noPOAAGG.csv")
+PMBB_616 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt")
+PMBB_526 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt")
+PMBB_IOP_CDR = _os.path.join(PMBB_DIR, "PMBB_949_POAG_IOP_CDR_Freeze3.csv")
+# ═══════════════════════════════════════════════════════════════
 
 LABEL   = "CaseCtrl"
 RNG     = 42
@@ -201,7 +220,7 @@ for fs_name, cols in FEATURE_SETS.items():
             })
 
 lc_df = pd.DataFrame(lc_rows)
-lc_df.to_excel(fr"{OUT_XL}\Table_SF4_LearningCurves.xlsx", index=False)
+lc_df.to_excel(_os.path.join(OUT_XL, "Table_SF4_LearningCurves.xlsx"), index=False)
 print(f"\n  Saved Table_SF4_LearningCurves.xlsx")
 
 
@@ -320,7 +339,7 @@ for fs_name, cols in FEATURE_SETS.items():
         })
 
 sex_df = pd.DataFrame(sex_rows)
-sex_df.to_excel(fr"{OUT_XL}\Table_SF5_SexStratified.xlsx", index=False)
+sex_df.to_excel(_os.path.join(OUT_XL, "Table_SF5_SexStratified.xlsx"), index=False)
 print(f"\n  Saved Table_SF5_SexStratified.xlsx")
 
 
@@ -401,7 +420,7 @@ ax4b.text(-0.12, 1.06, "B", transform=ax4b.transAxes,
 # suptitle removed per journal style
 
 for ext in ["png", "pdf"]:
-    fig4.savefig(fr"{OUT_FIG}\SF4_LearningCurves.{ext}",
+    fig4.savefig(_os.path.join(OUT_FIG, "SF4_LearningCurves.{ext}"),
                  bbox_inches="tight", dpi=300)
     print(f"  Saved SF4_LearningCurves.{ext}")
 plt.close(fig4)
@@ -497,7 +516,7 @@ ax5.legend(handles=handles, frameon=True, framealpha=0.9,
 # suptitle removed per journal style
 
 for ext in ["png", "pdf"]:
-    fig5.savefig(fr"{OUT_FIG}\SF5_SexStratified.{ext}",
+    fig5.savefig(_os.path.join(OUT_FIG, "SF5_SexStratified.{ext}"),
                  bbox_inches="tight", dpi=300)
     print(f"  Saved SF5_SexStratified.{ext}")
 plt.close(fig5)

@@ -27,24 +27,39 @@ from sklearn.metrics import (roc_auc_score, accuracy_score,
 import warnings
 warnings.filterwarnings("ignore")
 
-# ── Paths ────────────────────────────────────────────────────
 import os as _os
 
-# ── Configure your project root ─────────────────────────────────────────
-# Set BASE to the folder containing input-data/, output excel data/, figure/
-# Default: auto-detected as the repo root (2 levels above this script).
-BASE = _os.path.normpath(
-    _os.path.join(_os.path.dirname(_os.path.abspath(__file__)), "..", "..")
-)
-# To override manually, uncomment:
-# BASE = r"C:\path	o\your\project"   # Windows
-# BASE = "/path/to/your/project"          # macOS / Linux
-TRAIN_F  = fr"{BASE}\input-data\POAAGG_cohort\271_training_cohort_4_new_PRS_cleaned.xlsx"
-PMBB_PHE = fr"{BASE}\input-data\PMBB_external\PMBB_3.0_pheno_covars_for_Yan_noPOAAGG_updated_June8.csv"
-PMBB_616 = fr"{BASE}\input-data\PMBB_external\PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt"
-PMBB_526 = fr"{BASE}\input-data\PMBB_external\PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt"
-OUT_XL   = fr"{BASE}\output excel data"
-OUT_FIG  = fr"{BASE}\figure"
+# ═══════════════════════════════════════════════════════════════
+#  PATH CONFIGURATION  —  edit BASE if your data is elsewhere
+# ═══════════════════════════════════════════════════════════════
+#  Expected folder layout (relative to BASE):
+#    data/poaagg/   271_training_cohort_4_new_PRS_cleaned.xlsx
+#                   1013_testing_cohort_only_suspect_cleaned.xlsx
+#    data/pmbb/     PMBB_3.0_pheno_covars_noPOAAGG.csv
+#                   PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt
+#                   PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt
+#                   PMBB_949_POAG_IOP_CDR_Freeze3.csv   (asymmetry script only)
+#    outputs/tables/   ← Excel files written here
+#    outputs/figures/  ← PNG / PDF figures written here
+# ────────────────────────────────────────────────────────────────
+BASE = _os.path.dirname(_os.path.abspath(__file__))
+# To override:  BASE = r"C:\your\path"   (Windows)
+#               BASE = "/your/path"        (macOS / Linux)
+
+POAAGG_DIR = _os.path.join(BASE, "data", "poaagg")
+PMBB_DIR   = _os.path.join(BASE, "data", "pmbb")
+OUT_XL     = _os.path.join(BASE, "outputs", "tables")
+OUT_FIG    = _os.path.join(BASE, "outputs", "figures")
+_os.makedirs(OUT_XL,  exist_ok=True)
+_os.makedirs(OUT_FIG, exist_ok=True)
+
+TRAIN_F  = _os.path.join(POAAGG_DIR, "271_training_cohort_4_new_PRS_cleaned.xlsx")
+SUSP_F   = _os.path.join(POAAGG_DIR, "1013_testing_cohort_only_suspect_cleaned.xlsx")
+PMBB_PHE = _os.path.join(PMBB_DIR,   "PMBB_3.0_pheno_covars_noPOAAGG.csv")
+PMBB_616 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt")
+PMBB_526 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt")
+PMBB_IOP_CDR = _os.path.join(PMBB_DIR, "PMBB_949_POAG_IOP_CDR_Freeze3.csv")
+# ═══════════════════════════════════════════════════════════════
 
 LABEL       = "CaseCtrl"
 MODEL_NAMES = ["LR", "SVM", "RF", "MLP"]
@@ -330,7 +345,7 @@ pmbb_df = pd.DataFrame(pmbb_rows)
 # =============================================================
 print("\nSaving Excel ...")
 with pd.ExcelWriter(
-        fr"{OUT_XL}\Table_Figure3_Training_5x20CV.xlsx",
+        _os.path.join(OUT_XL, "Table_Figure3_Training_5x20CV.xlsx"),
         engine="openpyxl") as w:
     for metric in ["AUC", "Accuracy", "F1", "Sensitivity", "Specificity"]:
         sub = cv_df[cv_df["Metric"] == metric]
@@ -340,7 +355,7 @@ with pd.ExcelWriter(
     cv_df.to_excel(w, sheet_name="Full_Results", index=False)
 
 with pd.ExcelWriter(
-        fr"{OUT_XL}\Table_Figure3_PMBB_External.xlsx",
+        _os.path.join(OUT_XL, "Table_Figure3_PMBB_External.xlsx"),
         engine="openpyxl") as w:
     pmbb_df.to_excel(w, sheet_name="PMBB_AFR", index=False)
 
@@ -352,7 +367,7 @@ for pc in pc_labels:
         corr_rows.append({"PC": pc, "PGS": pgs_label, "Pearson_r": r, "p_value": p})
 corr_df = pd.DataFrame(corr_rows)
 with pd.ExcelWriter(
-        fr"{OUT_XL}\Table_PC_PGS_Correlations.xlsx",
+        _os.path.join(OUT_XL, "Table_PC_PGS_Correlations.xlsx"),
         engine="openpyxl") as w:
     corr_df.to_excel(w, sheet_name="PC_PGS_Corr", index=False)
     # pivot
@@ -443,9 +458,9 @@ auc_bar_panel(ax3a, auc_cv, FS_MAIN,
               title="",
               ylim=(0.50, 0.80),
               highlight_fs=["Base+PC2", "Base+PC5"])
-fig3a.savefig(fr"{OUT_FIG}\Figure_3A_Training_Base_PC_PGS.png",
+fig3a.savefig(_os.path.join(OUT_FIG, "Figure_3A_Training_Base_PC_PGS.png"),
               bbox_inches="tight", dpi=300)
-fig3a.savefig(fr"{OUT_FIG}\Figure_3A_Training_Base_PC_PGS.pdf",
+fig3a.savefig(_os.path.join(OUT_FIG, "Figure_3A_Training_Base_PC_PGS.pdf"),
               bbox_inches="tight", dpi=300)
 plt.close(fig3a)
 print("  Fig 3A saved.")
@@ -459,9 +474,9 @@ fig3b.subplots_adjust(left=0.11, right=0.97, top=0.88, bottom=0.22)
 auc_bar_panel(ax3b, auc_cv, FS_COMBINED,
               title="",
               highlight_fs=["Base+PC5+PGS526", "Base+PC5+PGS616"])
-fig3b.savefig(fr"{OUT_FIG}\Figure_3B_Training_PCplusPGS.png",
+fig3b.savefig(_os.path.join(OUT_FIG, "Figure_3B_Training_PCplusPGS.png"),
               bbox_inches="tight", dpi=300)
-fig3b.savefig(fr"{OUT_FIG}\Figure_3B_Training_PCplusPGS.pdf",
+fig3b.savefig(_os.path.join(OUT_FIG, "Figure_3B_Training_PCplusPGS.pdf"),
               bbox_inches="tight", dpi=300)
 plt.close(fig3b)
 print("  Fig 3B saved.")
@@ -480,9 +495,9 @@ auc_bar_panel(ax3c, pmbb_auc, PMBB_FS_ORDER,
               title="",
               ylim=(0.45, 0.80),
               highlight_fs=["Base+PC5", "Base+PC5+PGS526", "Base+PC5+PGS616"])
-fig3c.savefig(fr"{OUT_FIG}\Figure_3C_PMBB_External.png",
+fig3c.savefig(_os.path.join(OUT_FIG, "Figure_3C_PMBB_External.png"),
               bbox_inches="tight", dpi=300)
-fig3c.savefig(fr"{OUT_FIG}\Figure_3C_PMBB_External.pdf",
+fig3c.savefig(_os.path.join(OUT_FIG, "Figure_3C_PMBB_External.pdf"),
               bbox_inches="tight", dpi=300)
 plt.close(fig3c)
 print("  Fig 3C saved.")
@@ -513,9 +528,9 @@ for i, pc in enumerate(corr_mat.index):
                      fontsize=8,
                      color="white" if abs(r_val) > 0.25 else "black")
 fig_corr.tight_layout()
-fig_corr.savefig(fr"{OUT_FIG}\SuppFig_PC_PGS_Correlation.png",
+fig_corr.savefig(_os.path.join(OUT_FIG, "SuppFig_PC_PGS_Correlation.png"),
                  bbox_inches="tight", dpi=300)
-fig_corr.savefig(fr"{OUT_FIG}\SuppFig_PC_PGS_Correlation.pdf",
+fig_corr.savefig(_os.path.join(OUT_FIG, "SuppFig_PC_PGS_Correlation.pdf"),
                  bbox_inches="tight", dpi=300)
 plt.close(fig_corr)
 print("  Supp Fig PC-PGS correlation saved.")
@@ -531,9 +546,9 @@ auc_bar_panel(ax_pc, auc_cv, FS_PC_FULL,
                     "Age/Sex/PC/PGS and combinations",
               ylim=(0.35, 0.92),
               highlight_fs=["Base+PC2", "Base+PC5", "Base+PC10"])
-fig_pc.savefig(fr"{OUT_FIG}\SuppFig_Full_Feature_Comparison.png",
+fig_pc.savefig(_os.path.join(OUT_FIG, "SuppFig_Full_Feature_Comparison.png"),
                bbox_inches="tight", dpi=300)
-fig_pc.savefig(fr"{OUT_FIG}\SuppFig_Full_Feature_Comparison.pdf",
+fig_pc.savefig(_os.path.join(OUT_FIG, "SuppFig_Full_Feature_Comparison.pdf"),
                bbox_inches="tight", dpi=300)
 plt.close(fig_pc)
 print("  Supp Fig full comparison saved.")
