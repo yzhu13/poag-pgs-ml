@@ -26,6 +26,9 @@ Python analysis pipeline for POAG risk prediction using:
 ├── 04_asymmetry_analysis.py          Figure 5: inter-eye asymmetry (ΔIOP, ΔCDR) + PMBB
 ├── 05_shap_calibration.py            Fig S3: SHAP feature importance + calibration curves
 ├── 06_learning_curves_sex_stratified.py  Fig S4–S5: learning curves + sex-stratified AUC
+├── 07_delta_auc_paired.py            Fig S7, Tables S12: paired ΔAUC (DeLong + bootstrap + CV-fold)
+├── 08_same_classifier_comparison.py  Table S11: within-classifier Base vs Base+PGS AUC
+├── 09_pgs_residualized_on_pc.py      Table S13: PGS residualized on ancestry PCs (sensitivity)
 ├── requirements.txt
 └── data/
     ├── README.md                     Data access instructions
@@ -78,6 +81,17 @@ python 05_shap_calibration.py
 
 # Step 6: Learning curves + sex-stratified AUC (saves Table_SF4_*.xlsx, Table_SF5_*.xlsx)
 python 06_learning_curves_sex_stratified.py
+
+# --- R3 revision analyses (incremental value of PGS beyond age+sex) ---
+# Step 7: Paired ΔAUC — DeLong + bootstrap (PMBB) and paired CV-fold diffs (training)
+#         → Table_DeltaAUC_*.xlsx, Figure_DeltaAUC_forest.{png,pdf}  (Table S12, Figure S7)
+python 07_delta_auc_paired.py
+
+# Step 8: Same-classifier AUC comparison, Base vs Base+PGS  → Table_SameClassifier_AUC.xlsx (Table S11)
+python 08_same_classifier_comparison.py
+
+# Step 9: PGS residualized on PC1–PC5 sensitivity  → Table_PGS_residualized_on_PC.xlsx (Table S13)
+python 09_pgs_residualized_on_pc.py
 ```
 
 ---
