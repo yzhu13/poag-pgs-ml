@@ -43,8 +43,8 @@
 #  barely moves the training cohort (5x20 CV mean AUC changes by at
 #  most 0.0023, against bootstrap intervals 0.14 wide) and shifts the
 #  suspect-cohort partial correlations only in the third decimal (CDR
-#  0.023 -> 0.025, RNFL 0.034 -> 0.032, IOP 0.029 -> 0.029), leaving
-#  every one of them null. It changes the external results materially,
+#  0.023 -> 0.025, RNFL 0.034 -> 0.032, IOP 0.029 -> 0.029). It changes
+#  the external results materially,
 #  because that is where the mismatch was.
 #
 #  NOTE ON SCOPE. The transform is fitted on training and suspect

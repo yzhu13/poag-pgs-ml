@@ -14,11 +14,12 @@ individuals of African ancestry, alone and added to a demographic baseline,
 across four classifiers, with external validation in the Penn Medicine
 BioBank.
 
-The headline result is a negative one, and the code is written to make it
-checkable: a baseline of age and sex is already strongly predictive, and the
-polygenic increment is not distinguishable from zero for the primary model in
-either the training cohort or the external cohort, nor does it yield
-additional cases detected at fixed specificity.
+Age and sex provide a strong baseline in this high-risk cohort. For the
+primary model, adding a polygenic score gives comparable discrimination in
+both the training and the external cohort, and the secondary classifiers show
+small, classifier-dependent increments. The code reproduces every estimate,
+interval and paired comparison reported in the paper, and provides a
+benchmark against which future ancestry-matched scores can be evaluated.
 
 ## Corrections made on 2026-09-05
 

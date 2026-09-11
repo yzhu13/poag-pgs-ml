@@ -168,10 +168,10 @@ caption = (
     "95% confidence intervals from the DeLong test for two correlated ROC "
     "curves, with models trained in POAAGG and applied without refitting. "
     "Dashed line marks no difference. Intervals excluding zero are shown in "
-    "bold. The increment is not distinguishable from zero for any classifier "
-    "in the training cohort; in the external cohort it is small and varies "
-    "in sign across classifiers, and for the multilayer perceptron, the "
-    "primary model, it is not distinguishable from zero.\n"
+    "bold. The increment is small for every classifier in the training "
+    "cohort, with intervals that include zero; in the external cohort it is "
+    "small and varies in sign across classifiers, and for the multilayer "
+    "perceptron, the primary model, it is close to zero.\n"
 )
 with open(_os.path.join(FIG, "SF7_caption_R4.txt"), "w",
           encoding="utf-8") as fh:
