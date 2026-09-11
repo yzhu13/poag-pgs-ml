@@ -46,8 +46,15 @@ BASE = _os.path.dirname(_os.path.abspath(__file__))
 # To override:  BASE = r"C:\your\path"   (Windows)
 #               BASE = "/your/path"        (macOS / Linux)
 
-POAAGG_DIR = _os.path.join(BASE, "data", "poaagg")
-PMBB_DIR   = _os.path.join(BASE, "data", "pmbb")
+# 2026-09-05: repointed from the repository's ./data layout at the archived
+# input data, and from ./outputs at the working outputs this revision uses.
+import sys as _sys
+_sys.path.insert(0, BASE)
+from poag_paths import DATA_DIR as _DATA_DIR
+from poag_corrections import int_pgs616, restrict_pmbb_age
+
+POAAGG_DIR = _os.path.join(_DATA_DIR, "POAAGG_cohort")
+PMBB_DIR   = _os.path.join(_DATA_DIR, "PMBB_external")
 OUT_XL     = _os.path.join(BASE, "outputs", "tables")
 OUT_FIG    = _os.path.join(BASE, "outputs", "figures")
 _os.makedirs(OUT_XL,  exist_ok=True)
@@ -55,7 +62,7 @@ _os.makedirs(OUT_FIG, exist_ok=True)
 
 TRAIN_F  = _os.path.join(POAAGG_DIR, "271_training_cohort_4_new_PRS_cleaned.xlsx")
 SUSP_F   = _os.path.join(POAAGG_DIR, "1013_testing_cohort_only_suspect_cleaned.xlsx")
-PMBB_PHE = _os.path.join(PMBB_DIR,   "PMBB_3.0_pheno_covars_noPOAAGG.csv")
+PMBB_PHE = _os.path.join(PMBB_DIR,   "PMBB_3.0_pheno_covars_for_Yan_noPOAAGG_updated_June8.csv")
 PMBB_616 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt")
 PMBB_526 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt")
 PMBB_IOP_CDR = _os.path.join(PMBB_DIR, "PMBB_949_POAG_IOP_CDR_Freeze3.csv")
@@ -87,6 +94,10 @@ BASE_COLS  = ["Age", "Gender"]
 PC2_COLS   = ["PC1", "PC2"]
 PC5_COLS   = ["PC1", "PC2", "PC3", "PC4", "PC5"]
 PC10_COLS  = [f"PC{i}" for i in range(1, 11)]
+# Table S5 and the Results both carry Base+PC20 ("Base+PC20: 0.657"), but
+# this script never computed it, so those rows came from an earlier run and
+# could not be refreshed with the corrected PGS616. Added here.
+PC20_COLS  = [f"PC{i}" for i in range(1, 21)]
 
 FEATURE_SETS = {
     "Age only":          ["Age"],
@@ -101,6 +112,8 @@ FEATURE_SETS = {
     "Base+PGS616":       BASE_COLS + ["PGS616"],
     "Base+PC5+PGS526":   BASE_COLS + PC5_COLS + ["PGS526"],
     "Base+PC5+PGS616":   BASE_COLS + PC5_COLS + ["PGS616"],
+    "Base+PC20":         BASE_COLS + PC20_COLS,
+    "Base+PC20+PGS616":  BASE_COLS + PC20_COLS + ["PGS616"],
 }
 
 # For PMBB — column mapping (what we can validate externally)
@@ -160,7 +173,10 @@ def summarise(vals):
                 Mean_95CI=f"{mn:.3f} ({lo:.3f}–{hi:.3f})")
 
 
-def boot_auc(yt, ys, n=1000, seed=42):
+# 2026-09-05: n was 1000, while STAR Methods states B = 2,000 for the
+# external cohort. Unified at 2,000 so every external interval in the
+# paper rests on the same number of replicates.
+def boot_auc(yt, ys, n=2000, seed=42):
     rng = np.random.RandomState(seed)
     bs = []
     for _ in range(n):
@@ -178,6 +194,8 @@ def boot_auc(yt, ys, n=1000, seed=42):
 # =============================================================
 print("Loading data ...")
 tr    = pd.read_excel(TRAIN_F)
+su    = pd.read_excel(SUSP_F)
+tr, su = int_pgs616(tr, su)
 y_tr  = tr[LABEL].values.astype(int)
 print(f"  Train N={len(tr)}  cases={y_tr.sum()}  ctrl={(y_tr==0).sum()}")
 
@@ -191,6 +209,7 @@ pmbb = pmbb[pmbb["ANCESTRY"] == "AFR"].dropna(
     subset=["POAG_cases", "PGS616", "PGS526",
             "PMBB_3.0_Release_AGE", "SEX"]).copy()
 pmbb["POAG_cases"] = pmbb["POAG_cases"].astype(int)
+pmbb = restrict_pmbb_age(pmbb)
 pmbb["SEX_bin"]    = (pmbb["SEX"] == "Male").astype(int)
 y_pmbb = pmbb["POAG_cases"].values
 print(f"  PMBB AFR N={len(pmbb):,}  cases={y_pmbb.sum()}  "

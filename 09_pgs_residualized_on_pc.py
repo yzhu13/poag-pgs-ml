@@ -40,11 +40,19 @@ import warnings
 warnings.filterwarnings("ignore")
 
 HERE = _os.path.dirname(_os.path.abspath(__file__))
-OUT_XL = _os.path.join(HERE, "..", "outputs", "tables")
+import sys
+sys.path.insert(0, HERE)
+from poag_corrections import (int_pgs616_training_only,
+                              restrict_pmbb_age)   # 2026-09-05 audit
+OUT_XL = _os.path.join(HERE, "outputs", "tables")
 _os.makedirs(OUT_XL, exist_ok=True)
 
-DATA_DIR = (r"C:\Users\biqiz\iCloudDrive\3_Penn_Postdoc\0_Projects_Ongoing"
-            r"\1_MLP\_archive\R1_work_2026-05-08\input-data")
+# Data location. Set POAG_DATA_DIR to the folder holding the cohort
+# subdirectories; it defaults to ./data next to this script. The data
+# themselves are under controlled access (see data/README.md).
+DATA_DIR = _os.environ.get(
+    "POAG_DATA_DIR", _os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                   "data"))
 TRAIN_F  = _os.path.join(DATA_DIR, "POAAGG_cohort",
                          "271_training_cohort_4_new_PRS_cleaned.xlsx")
 PMBB_PHE = _os.path.join(DATA_DIR, "PMBB_external",
@@ -111,6 +119,7 @@ def delong_test(y_true, p1, p2):
 # ---- LOAD ---------------------------------------------------
 print("Loading data ...")
 tr = pd.read_excel(TRAIN_F)
+tr = int_pgs616_training_only(tr)
 y_tr = tr[LABEL].values.astype(int)
 phe = pd.read_csv(PMBB_PHE)
 p616 = (pd.read_csv(PMBB_616, sep="\t")[["IID", "SCORE1_AVG_STD"]]
@@ -122,6 +131,7 @@ pmbb = pmbb[pmbb["ANCESTRY"] == "AFR"].dropna(
     subset=["POAG_cases", "PGS616", "PGS526",
             "PMBB_3.0_Release_AGE", "SEX"]).copy()
 pmbb["POAG_cases"] = pmbb["POAG_cases"].astype(int)
+pmbb = restrict_pmbb_age(pmbb)
 pmbb["SEX_bin"] = (pmbb["SEX"] == "Male").astype(int)
 y_pmbb = pmbb["POAG_cases"].values
 print(f"  Train N={len(tr)}  PMBB AFR N={len(pmbb):,}")

@@ -1,166 +1,158 @@
 # POAG PGS + ML — Analysis Code
 
-**Multimodal Prediction of Primary Open-Angle Glaucoma Using Polygenic Risk Scores and Clinical Features in a High-Risk African Ancestry Cohort**  
-Yan Zhu, Aude Benigne Ikuzwe Sindikubwabo, Yuki Bradford, et al.  
-*iScience*, 2026 — Manuscript ISCIENCE-D-26-03991R2
+**Multimodal Prediction of Primary Open-Angle Glaucoma Using Polygenic Risk
+Scores and Clinical Features in a High-Risk African Ancestry Cohort**
+Yan Zhu, Aude Benigne Ikuzwe Sindikubwabo, Yuki Bradford, et al.
+*iScience* — manuscript ISCIENCE-D-26-03991 (new revision)
 
 ---
 
-## Overview
+## What this code does
 
-Python analysis pipeline for POAG risk prediction using:
-- Four polygenic risk scores (PGS) matched to African ancestry
-- Four ML classifiers (LR, RF, SVM, MLP)
-- **5-fold × 20-repeat stratified cross-validation** (5×20 CV; 100 fits per configuration)
-- External validation in the Penn Medicine BioBank (PMBB; N = 9,817 AFR)
+Evaluates four polygenic risk scores for primary open-angle glaucoma in
+individuals of African ancestry, alone and added to a demographic baseline,
+across four classifiers, with external validation in the Penn Medicine
+BioBank.
 
----
+The headline result is a negative one, and the code is written to make it
+checkable: a baseline of age and sex is already strongly predictive, and the
+polygenic increment is not distinguishable from zero for the primary model in
+either the training cohort or the external cohort, nor does it yield
+additional cases detected at fixed specificity.
 
-## Repository structure
+## Corrections made on 2026-09-05
+
+Two errors in the external validation were found before resubmission and
+are corrected in every script here (`poag_corrections.py`):
+
+1. `PGS616` in the POAAGG workbooks is the untransformed PLINK score sum,
+   while the PMBB scores are rank-based inverse normal transformed. The
+   standardization fitted in POAAGG therefore placed PMBB participants about
+   four standard deviations above the training mean. `int_pgs616` now
+   transforms PGS616 across the 1,284 POAAGG training and suspect
+   participants, as the other three scores already were.
+2. The stated PMBB restriction to age >= 35 years had not been applied.
+   `restrict_pmbb_age` applies it (9,817 -> 9,084 participants).
+
+With both corrected, the primary model's external increment is -0.001
+(DeLong p = 0.55), where the uncorrected analysis gave +0.010 (p < 0.001).
+Training-cohort results change only in the third decimal.
+
+## Further changes made on 2026-09-10
+
+* **Inter-eye differences.** Two training participants had a cup-to-disc
+  ratio recorded for one eye only, and the stored difference equalled that
+  eye's value. `poag_corrections.recompute_training_deltas` recomputes both
+  differences from the two eyes (missing when either eye is missing, then
+  imputed inside the pipeline), as was already done for the suspect and PMBB
+  cohorts. Used by scripts 04, 18 and 42; only the delta-CDR results move.
+* **Paired external contrasts.** Script 07 now also compares Base+PC5+PGS526
+  and Base+PC5+PGS616 with Base in PMBB, and script 42 gives the paired
+  DeLong and bootstrap increment of each score over the phenotype-only
+  asymmetry model for every classifier (Table S18, panel B).
+* **Shared-variant sensitivity analysis** (`60_common_variant_sensitivity.py`).
+  The scores were computed from 568 / 486 variants in POAAGG and 539 / 460 in
+  PMBB. Script 60 rescores both cohorts from the PLINK binary files on the
+  525 / 448 variants scored in both and repeats the external comparison; the
+  primary model's result is unchanged (delta-AUC +0.002, DeLong p = 0.65).
+* Table S6 external increments are computed before rounding (script 08).
+
+## Statistical approach
+
+Uncertainty is estimated by a **participant-level bootstrap**, not from
+cross-validation folds. Repeated cross-validation is reported only as a
+descriptive summary of model stability.
+
+The reason matters. Fold-level estimates from 5-fold × 20-repeat CV are not
+independent — the same 271 participants recur in every fold — so their
+standard error understates the sampling variability of the cohort by roughly
+an order of magnitude. In each of 2,000 bootstrap replicates, participants are
+resampled with replacement, stratified on case/control status; the complete
+pipeline is refitted on the in-bag sample and evaluated on the out-of-bag
+participants. Every feature set and classifier within a replicate shares the
+same in-bag and out-of-bag participants, so incremental comparisons are paired
+by construction.
+
+External validation uses the DeLong test for correlated ROC curves together
+with participant-level bootstrap resampling of the validation cohort.
+
+## Layout
 
 ```
 .
-├── 01_pgs_standalone.py              Figure 2: standalone PGS performance (5×20 CV + PMBB)
-├── 02_training_external_validation.py Figure 3: 12-feature-set training + PMBB external validation
-├── 03_suspect_enrichment.py          Figure 4: clinical enrichment in 1,013 suspects
-├── 04_asymmetry_analysis.py          Figure 5: inter-eye asymmetry (ΔIOP, ΔCDR) + PMBB
-├── 05_shap_calibration.py            Fig S3: SHAP feature importance + calibration curves
-├── 06_learning_curves_sex_stratified.py  Fig S4–S5: learning curves + sex-stratified AUC
-├── 07_delta_auc_paired.py            Fig S7, Tables S12: paired ΔAUC (DeLong + bootstrap + CV-fold)
-├── 08_same_classifier_comparison.py  Table S11: within-classifier Base vs Base+PGS AUC
-├── 09_pgs_residualized_on_pc.py      Table S13: PGS residualized on ancestry PCs (sensitivity)
-├── requirements.txt
-└── data/
-    ├── README.md                     Data access instructions
-    ├── poaagg/                       Place POAAGG cohort files here
-    └── pmbb/                         Place PMBB external validation files here
+├── 01_pgs_standalone.py                 Figure 2: standalone PGS performance
+├── 02_training_external_validation.py   Figure 3: 12 feature sets, training + PMBB
+├── 03_suspect_enrichment.py             Figure 4: enrichment in 1,013 suspects
+├── 04_asymmetry_analysis.py             Figure 5: inter-eye asymmetry
+├── 05_shap_calibration.py               Figure S3: SHAP, calibration
+├── 06_learning_curves_sex_stratified.py Figures S4, S5
+├── 07_delta_auc_paired.py               Figure S6, Table S7: incremental AUC, DeLong
+├── 08_same_classifier_comparison.py     Table S6: within-classifier Base vs Base+PGS
+├── 09_pgs_residualized_on_pc.py         Table S10: PGS residualized on PCs
+├── 10_participant_bootstrap_ci.py       Table S8: bootstrap AUC and paired ΔAUC
+├── 11_suspect_pgs_partial_association.py Table S17: suspect cohort, age/sex adjusted
+├── 12_pgs_standalone_paired.py          Table S4: curated vs genome-wide, paired
+├── 13_clinical_utility_pmbb.py          Table S16: sensitivity at fixed specificity
+├── 14_pgs_construction_provenance.py    Table S3: variant accounting for PGS616/526
+├── 15_leakage_safeguards.py             Table S20: leakage safeguards + live checks
+├── 17_regenerate_figures.py             Figures 2C, 3A, 3B, S2B from saved replicates
+├── 18_secondary_bootstraps.py           Table S19: sex-stratified, asymmetry, residualized
+├── 21_compose_figure_S7.py              Figure S6, two-panel forest plot
+├── 24_figure_S2_and_captions.py         Figure S2, both panels
+├── 27_rebuild_main_figures.py           Composites bootstrap panels into Figures 2, 3, 5
+├── 41_rebuild_external_panels.py        Redraws Figures 2D, 3C, 5C (run after 27)
+├── 42_figure5_asymmetry_external.py     Figure 5C / Table S18 external asymmetry AUCs + paired contrasts
+├── 60_common_variant_sensitivity.py     Table S3: rescoring on variants scored in both cohorts
+├── poag_corrections.py                  PGS616 transform, PMBB age restriction, inter-eye differences
+├── poag_paths.py                        data location (POAG_DATA_DIR)
+├── data/                                controlled access — see data/README.md
+└── outputs/                             tables/ and figures/ written here
 ```
 
-All Excel output tables are written to `outputs/tables/`  
-All figures (PNG + PDF) are written to `outputs/figures/`
-
----
-
-## Setup
+## Running
 
 ```bash
 pip install -r requirements.txt
+export POAG_DATA_DIR=/path/to/cohort/data     # see data/README.md
+python 10_participant_bootstrap_ci.py 2000 -1  # B, n_jobs
 ```
 
-Python 3.11 recommended.
+Scripts write to `outputs/tables/` and `outputs/figures/`. Script 10 saves all
+104,000 bootstrap replicates to
+`outputs/tables/bootstrap_replicates_training.csv.gz`, so figures can be
+redrawn (script 17) without refitting anything.
 
----
+Runtime: the full bootstrap is about 30 minutes on 16 cores; the secondary
+bootstrap (script 18) about the same. Everything else runs in minutes.
+
+Order used for the paper: 01-06, 07, 08, 09, 10, 11-15, 18, 42, 60, then
+the figure scripts 17, 21, 24, 27 and 41 (41 after 27). Scripts 27 and 41
+paste redrawn panels into the published figure images, because panels 2A
+and 5A exist only as images; they expect those images in
+`$POAG_PROJECT_DIR/figures/`. All other scripts need only the data.
+
+## Reproducibility
+
+* Seed 42 throughout; classifier settings are fixed literals.
+* **No hyperparameter search of any kind was performed.** Settings were fixed
+  a priori and held constant across every feature set, cohort and analysis;
+  script 15 verifies this by scanning the code for search constructs and by
+  confirming that all model-fitting scripts carry identical classifier
+  configurations.
+* Results reported in this revision were produced with Python 3.13.7 and
+  the package versions pinned in `requirements.txt`; other versions can
+  differ in the last decimals.
+* Preprocessing (median imputation, z-score scaling) sits inside the
+  scikit-learn pipeline, so it is refitted within every fold and every
+  bootstrap replicate.
 
 ## Data
 
-Raw data are not publicly available (IRB / dbGaP restricted). See [`data/README.md`](data/README.md) for full file list and access instructions.
+Individual-level data are under controlled access and are not distributed
+here. See `data/README.md` for accessions and the expected folder layout.
 
-PGS SNP weights: Supplemental Table S2 + [Mendeley Data](https://doi.org/10.17632/9rjn45y65c.1)
+## Citation
 
----
-
-## Running the analyses
-
-Run scripts **in order** — later scripts read Excel files saved by earlier ones:
-
-```bash
-# Step 1: Standalone PGS performance (saves outputs/tables/Table_Figure2_PGS_only.xlsx)
-python 01_pgs_standalone.py
-
-# Step 2: Training cohort + PMBB external validation (saves Table_Figure3_*.xlsx)
-python 02_training_external_validation.py
-
-# Step 3: Suspect cohort enrichment (saves Table_Figure4_Suspects.xlsx)
-python 03_suspect_enrichment.py
-
-# Step 4: Asymmetry analysis (saves Table_Figure5_Asymmetry.xlsx)
-python 04_asymmetry_analysis.py
-
-# Step 5: SHAP + calibration (saves Table_SF3_*.xlsx)
-python 05_shap_calibration.py
-
-# Step 6: Learning curves + sex-stratified AUC (saves Table_SF4_*.xlsx, Table_SF5_*.xlsx)
-python 06_learning_curves_sex_stratified.py
-
-# --- R3 revision analyses (incremental value of PGS beyond age+sex) ---
-# Step 7: Paired ΔAUC — DeLong + bootstrap (PMBB) and paired CV-fold diffs (training)
-#         → Table_DeltaAUC_*.xlsx, Figure_DeltaAUC_forest.{png,pdf}  (Table S12, Figure S7)
-python 07_delta_auc_paired.py
-
-# Step 8: Same-classifier AUC comparison, Base vs Base+PGS  → Table_SameClassifier_AUC.xlsx (Table S11)
-python 08_same_classifier_comparison.py
-
-# Step 9: PGS residualized on PC1–PC5 sensitivity  → Table_PGS_residualized_on_PC.xlsx (Table S13)
-python 09_pgs_residualized_on_pc.py
-```
-
----
-
-## Key results (iScience R2 submission, June 2026)
-
-### Training cohort (POAAGG; N = 271; 5×20 CV)
-
-| Feature set | Mean AUC | 95% CI |
-|---|---|---|
-| Base (Age + Sex) | 0.683 | 0.669–0.697 |
-| Base + PGS526 | 0.696 | 0.682–0.709 |
-| Base + PGS616 | 0.700 | 0.687–0.713 |
-| Best: MLP + Base + PGS616 | **0.713** | — |
-
-### PMBB external validation (AFR; N = 9,817; 170 cases, 9,647 controls)
-
-| Feature set | Mean AUC |
-|---|---|
-| Base | 0.728 |
-| Base + PGS526 | 0.735 |
-| **Best: MLP + Base + PGS616** | **0.752 (95% CI: 0.723–0.780)** |
-
-### Asymmetry analysis (PMBB; N = 2,786 with IOP/CDR; 120 cases)
-
-| Feature set | External AUC | 95% CI |
-|---|---|---|
-| ΔCDR + PGS616 | 0.696 | 0.644–0.748 |
-| ΔIOP + PGS616 | 0.588 | 0.542–0.635 |
-
----
-
-## Models
-
-All classifiers implemented in `sklearn.Pipeline` (impute → scale → classify):
-
-| Model | Key settings |
-|---|---|
-| Logistic Regression (LR) | L2, liblinear, C=1, balanced class weight |
-| Random Forest (RF) | 200 trees, max_depth=5, balanced class weight |
-| SVM | RBF kernel, balanced class weight, probability=True |
-| MLP | hidden=(32,), max_iter=1000, random_state=42 |
-
----
-
-## Feature sets (12 configurations)
-
-| Set | Features |
-|---|---|
-| Age only | Age |
-| Sex only | Gender |
-| Base | Age + Gender |
-| Base + PC2/PC5/PC10 | Base + ancestry PCs |
-| Base + POAAGG PGS | Base + genome-wide PGS (PRS-CS, POAAGG cohort) |
-| Base + MEGA PGS | Base + genome-wide PGS (PRS-CS, MEGA cohort) |
-| Base + PGS526 | Base + curated 526-locus score |
-| Base + PGS616 | Base + curated 616-locus score |
-| Base + PC5 + PGS526/616 | Combined PC + PGS models |
-
----
-
-## Software
-
-- Python 3.11 · scikit-learn 1.3 · pandas 2.x · numpy 1.x · scipy 1.10
-- shap · matplotlib · seaborn · openpyxl
-- PGS computed with PLINK 2.0; POAAGG PGS via PRS-CS (African ancestry LD panel)
-
----
-
-## License
-
-MIT License
+Please cite the paper. `v0.1-submission` corresponds to the original
+submission; `v3-revision` corresponds to the revised manuscript
+(ISCIENCE-D-26-03991, September 2026).

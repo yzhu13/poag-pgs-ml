@@ -19,6 +19,7 @@
 # =============================================================
 
 import os as _os
+import sys
 import numpy as np
 import pandas as pd
 from sklearn.linear_model import LogisticRegression
@@ -34,11 +35,18 @@ import warnings
 warnings.filterwarnings("ignore")
 
 HERE = _os.path.dirname(_os.path.abspath(__file__))
-OUT_XL = _os.path.join(HERE, "..", "outputs", "tables")
+sys.path.insert(0, HERE)
+from poag_corrections import (int_pgs616, int_pgs616_training_only,
+                              restrict_pmbb_age)   # 2026-09-05 audit
+OUT_XL = _os.path.join(HERE, "outputs", "tables")
 _os.makedirs(OUT_XL, exist_ok=True)
 
-DATA_DIR = (r"C:\Users\biqiz\iCloudDrive\3_Penn_Postdoc\0_Projects_Ongoing"
-            r"\1_MLP\_archive\R1_work_2026-05-08\input-data")
+# Data location. Set POAG_DATA_DIR to the folder holding the cohort
+# subdirectories; it defaults to ./data next to this script. The data
+# themselves are under controlled access (see data/README.md).
+DATA_DIR = _os.environ.get(
+    "POAG_DATA_DIR", _os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                   "data"))
 TRAIN_F  = _os.path.join(DATA_DIR, "POAAGG_cohort",
                          "271_training_cohort_4_new_PRS_cleaned.xlsx")
 PMBB_PHE = _os.path.join(DATA_DIR, "PMBB_external",
@@ -77,6 +85,7 @@ def make_pipeline(name):
 
 print("Loading data ...")
 tr = pd.read_excel(TRAIN_F)
+tr = int_pgs616_training_only(tr)
 y_tr = tr[LABEL].values.astype(int)
 phe = pd.read_csv(PMBB_PHE)
 p616 = (pd.read_csv(PMBB_616, sep="\t")[["IID", "SCORE1_AVG_STD"]]
@@ -88,6 +97,7 @@ pmbb = pmbb[pmbb["ANCESTRY"] == "AFR"].dropna(
     subset=["POAG_cases", "PGS616", "PGS526",
             "PMBB_3.0_Release_AGE", "SEX"]).copy()
 pmbb["POAG_cases"] = pmbb["POAG_cases"].astype(int)
+pmbb = restrict_pmbb_age(pmbb)
 pmbb["SEX_bin"] = (pmbb["SEX"] == "Male").astype(int)
 y_pmbb = pmbb["POAG_cases"].values
 print(f"  Train N={len(tr)}  PMBB AFR N={len(pmbb):,}")
@@ -146,18 +156,23 @@ for m in MODEL_NAMES:
             "Train_95CI": f"{mn:.3f} ({tlo:.3f}-{thi:.3f})",
             "PMBB_AUC": round(pt, 3),
             "PMBB_95CI": f"{pt:.3f} ({plo:.3f}-{phi:.3f})",
+            "_train_raw": mn, "_pmbb_raw": pt,
         })
 tbl = pd.DataFrame(rows)
 
 # add ΔAUC-vs-Base column within classifier
+# (2026-09-10 audit: the differences were taken between AUCs already
+#  rounded to 3 dp, so they could be off by 0.001 from the DeLong table;
+#  they are now taken from the unrounded values, then rounded)
 tbl["Train_dAUC_vs_Base"] = np.nan
 tbl["PMBB_dAUC_vs_Base"]  = np.nan
 for m in MODEL_NAMES:
-    base_tr = tbl[(tbl.Classifier == m) & (tbl.FeatureSet == "Base")]["Train_AUC"].iloc[0]
-    base_pm = tbl[(tbl.Classifier == m) & (tbl.FeatureSet == "Base")]["PMBB_AUC"].iloc[0]
+    base_tr = tbl[(tbl.Classifier == m) & (tbl.FeatureSet == "Base")]["_train_raw"].iloc[0]
+    base_pm = tbl[(tbl.Classifier == m) & (tbl.FeatureSet == "Base")]["_pmbb_raw"].iloc[0]
     mask = tbl.Classifier == m
-    tbl.loc[mask, "Train_dAUC_vs_Base"] = (tbl.loc[mask, "Train_AUC"] - base_tr).round(3)
-    tbl.loc[mask, "PMBB_dAUC_vs_Base"]  = (tbl.loc[mask, "PMBB_AUC"]  - base_pm).round(3)
+    tbl.loc[mask, "Train_dAUC_vs_Base"] = (tbl.loc[mask, "_train_raw"] - base_tr).round(3)
+    tbl.loc[mask, "PMBB_dAUC_vs_Base"]  = (tbl.loc[mask, "_pmbb_raw"]  - base_pm).round(3)
+tbl = tbl.drop(columns=["_train_raw", "_pmbb_raw"])
 
 # wide pivot for readability (AUC with CI)
 piv_train = tbl.pivot(index="Classifier", columns="FeatureSet",

@@ -1,0 +1,8 @@
+__pycache__/
+*.pyc
+data/*
+!data/README.md
+outputs/tables/*
+outputs/figures/*
+!outputs/tables/.gitkeep
+!outputs/figures/.gitkeep

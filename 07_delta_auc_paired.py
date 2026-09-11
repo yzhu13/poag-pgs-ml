@@ -23,6 +23,7 @@
 # =============================================================
 
 import os as _os
+import sys
 import numpy as np
 import pandas as pd
 import matplotlib
@@ -47,13 +48,20 @@ warnings.filterwarnings("ignore")
 #  Edit DATA_DIR if the data are elsewhere.
 # ═══════════════════════════════════════════════════════════════
 HERE = _os.path.dirname(_os.path.abspath(__file__))
-OUT_XL  = _os.path.join(HERE, "..", "outputs", "tables")
-OUT_FIG = _os.path.join(HERE, "..", "outputs", "figures")
+sys.path.insert(0, HERE)
+from poag_corrections import (int_pgs616, int_pgs616_training_only,
+                              restrict_pmbb_age)   # 2026-09-05 audit
+OUT_XL  = _os.path.join(HERE, "outputs", "tables")
+OUT_FIG = _os.path.join(HERE, "outputs", "figures")
 _os.makedirs(OUT_XL,  exist_ok=True)
 _os.makedirs(OUT_FIG, exist_ok=True)
 
-DATA_DIR = (r"C:\Users\biqiz\iCloudDrive\3_Penn_Postdoc\0_Projects_Ongoing"
-            r"\1_MLP\_archive\R1_work_2026-05-08\input-data")
+# Data location. Set POAG_DATA_DIR to the folder holding the cohort
+# subdirectories; it defaults to ./data next to this script. The data
+# themselves are under controlled access (see data/README.md).
+DATA_DIR = _os.environ.get(
+    "POAG_DATA_DIR", _os.path.join(_os.path.dirname(_os.path.abspath(__file__)),
+                                   "data"))
 TRAIN_F  = _os.path.join(DATA_DIR, "POAAGG_cohort",
                          "271_training_cohort_4_new_PRS_cleaned.xlsx")
 PMBB_PHE = _os.path.join(DATA_DIR, "PMBB_external",
@@ -66,7 +74,8 @@ PMBB_526 = _os.path.join(DATA_DIR, "PMBB_external",
 LABEL       = "CaseCtrl"
 MODEL_NAMES = ["LR", "SVM", "RF", "MLP"]
 SEED        = 42
-N_BOOT      = 1000
+N_BOOT      = 2000   # 2026-09-05: was 1000, which contradicted the
+                     # STAR Methods statement of B = 2,000 for external validation
 
 BASE_COLS = ["Age", "Gender"]
 PC5_COLS  = ["PC1", "PC2", "PC3", "PC4", "PC5"]
@@ -77,12 +86,18 @@ FS = {
     "Base+PGS616":  BASE_COLS + ["PGS616"],
     "Base+PGS526":  BASE_COLS + ["PGS526"],
     "Base+PC5":     BASE_COLS + PC5_COLS,
+    # 2026-09-10 (audit): Table S7 listed these two in training but had no
+    # external statistics for them, although Figure 3 evaluates both in PMBB
+    "Base+PC5+PGS616": BASE_COLS + PC5_COLS + ["PGS616"],
+    "Base+PC5+PGS526": BASE_COLS + PC5_COLS + ["PGS526"],
 }
 # comparisons: (augmented, reference)
 COMPARISONS = [
     ("Base+PGS616", "Base"),
     ("Base+PGS526", "Base"),
     ("Base+PC5",    "Base"),
+    ("Base+PC5+PGS616", "Base"),
+    ("Base+PC5+PGS526", "Base"),
 ]
 
 
@@ -179,6 +194,7 @@ def fmt(x, nd=3):
 # =============================================================
 print("Loading data ...")
 tr = pd.read_excel(TRAIN_F)
+tr = int_pgs616_training_only(tr)
 y_tr = tr[LABEL].values.astype(int)
 print(f"  Train N={len(tr)}  cases={y_tr.sum()}  ctrl={(y_tr==0).sum()}")
 
@@ -192,6 +208,7 @@ pmbb = pmbb[pmbb["ANCESTRY"] == "AFR"].dropna(
     subset=["POAG_cases", "PGS616", "PGS526",
             "PMBB_3.0_Release_AGE", "SEX"]).copy()
 pmbb["POAG_cases"] = pmbb["POAG_cases"].astype(int)
+pmbb = restrict_pmbb_age(pmbb)
 pmbb["SEX_bin"] = (pmbb["SEX"] == "Male").astype(int)
 y_pmbb = pmbb["POAG_cases"].values
 print(f"  PMBB AFR N={len(pmbb):,}  cases={y_pmbb.sum()}  "
@@ -268,6 +285,10 @@ def pmbb_matrix(fs):
         cols_tr += ["PGS526"]; cols_pm += ["PGS526"]
     elif fs == "Base+PC5":
         cols_tr += PC5_COLS;   cols_pm += PC5_COLS
+    elif fs == "Base+PC5+PGS616":
+        cols_tr += PC5_COLS + ["PGS616"]; cols_pm += PC5_COLS + ["PGS616"]
+    elif fs == "Base+PC5+PGS526":
+        cols_tr += PC5_COLS + ["PGS526"]; cols_pm += PC5_COLS + ["PGS526"]
     return tr[cols_tr].values, pmbb[cols_pm].values
 
 # get fixed prediction vectors per (model, fs)

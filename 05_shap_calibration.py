@@ -56,8 +56,15 @@ BASE = _os.path.dirname(_os.path.abspath(__file__))
 # To override:  BASE = r"C:\your\path"   (Windows)
 #               BASE = "/your/path"        (macOS / Linux)
 
-POAAGG_DIR = _os.path.join(BASE, "data", "poaagg")
-PMBB_DIR   = _os.path.join(BASE, "data", "pmbb")
+# 2026-09-05: repointed from the repository's ./data layout at the
+# archived input data, and from ./outputs at this revision's outputs.
+import sys as _sys
+_sys.path.insert(0, BASE)
+from poag_paths import DATA_DIR as _DATA_DIR
+from poag_corrections import int_pgs616, int_pgs616_training_only
+
+POAAGG_DIR = _os.path.join(_DATA_DIR, "POAAGG_cohort")
+PMBB_DIR   = _os.path.join(_DATA_DIR, "PMBB_external")
 OUT_XL     = _os.path.join(BASE, "outputs", "tables")
 OUT_FIG    = _os.path.join(BASE, "outputs", "figures")
 _os.makedirs(OUT_XL,  exist_ok=True)
@@ -126,6 +133,7 @@ def make_pipeline(name):
 # ── Load data ─────────────────────────────────────────────────
 print("Loading data ...")
 tr   = pd.read_excel(TRAIN_F)
+tr = int_pgs616_training_only(tr)
 y_tr = tr[LABEL].values.astype(int)
 print(f"  N={len(tr)}, cases={y_tr.sum()}, controls={(y_tr==0).sum()}")
 
@@ -157,6 +165,10 @@ for fs_name, cols in FEAT_SETS.items():
     clf  = pipe.named_steps["clf"]
 
     explainer   = shap.KernelExplainer(clf.predict_proba, bg)
+    # KernelExplainer samples feature coalitions with numpy's global RNG
+    # once 2^p exceeds nsamples (the 8-feature set); seed it so the values
+    # reproduce exactly (unseeded, they moved in the 4th decimal run to run)
+    np.random.seed(RNG)
     shap_values = explainer.shap_values(X_t, nsamples=150)
     # Handle both old API (list of arrays) and new API (3D array)
     if isinstance(shap_values, list):
@@ -428,7 +440,9 @@ for mi, mn in enumerate(MODEL_NAMES):
             means_d.append(np.nan); errs_d.append(0)
         else:
             m = float(row["Mean_Brier"].iloc[0])
-            e = float(row["SE_Brier"].iloc[0]) * 1.96
+            # fold-to-fold SD (descriptive); a 1.96*SE interval over
+            # non-independent folds is not a confidence interval (A03)
+            e = float(row["SD_Brier"].iloc[0])
             means_d.append(m); errs_d.append(e)
 
     ax_d.bar(x_pos_d + offsets_d[mi], means_d, bar_w_d,
@@ -449,7 +463,7 @@ ax_d.axhline(brier_ref, color="dimgrey", linewidth=1.0,
 
 ax_d.set_xticks(x_pos_d)
 ax_d.set_xticklabels(FS_LABELS_D, fontsize=9)
-ax_d.set_ylabel("Brier Score (5×20 CV mean ± 95% CI)\n← lower is better", fontsize=9)
+ax_d.set_ylabel("Brier Score (5×20 CV mean ± SD)\n← lower is better", fontsize=9)
 ax_d.set_ylim(0, 0.38)
 ax_d.set_title("D  Brier Score — All Classifiers × Key Feature Sets\n"
                "(5-fold × 20-repeat CV; lower = better calibration)",
@@ -461,7 +475,7 @@ ax_d.legend(fontsize=8, framealpha=0.9, loc="upper right", ncol=2)
 # suptitle removed per journal style
 
 for ext in ["png", "pdf"]:
-    fig.savefig(_os.path.join(OUT_FIG, "SF3_SHAP_Calibration.{ext}"),
+    fig.savefig(_os.path.join(OUT_FIG, f"SF3_SHAP_Calibration.{ext}"),
                 bbox_inches="tight", dpi=300)
     print(f"  Saved SF3_SHAP_Calibration.{ext}")
 plt.close(fig)

@@ -46,8 +46,15 @@ BASE = _os.path.dirname(_os.path.abspath(__file__))
 # To override:  BASE = r"C:\your\path"   (Windows)
 #               BASE = "/your/path"        (macOS / Linux)
 
-POAAGG_DIR = _os.path.join(BASE, "data", "poaagg")
-PMBB_DIR   = _os.path.join(BASE, "data", "pmbb")
+# 2026-09-05: repointed from the repository's ./data layout at the archived
+# input data, and from ./outputs at the working outputs this revision uses.
+import sys as _sys
+_sys.path.insert(0, BASE)
+from poag_paths import DATA_DIR as _DATA_DIR
+from poag_corrections import int_pgs616, restrict_pmbb_age, recompute_training_deltas
+
+POAAGG_DIR = _os.path.join(_DATA_DIR, "POAAGG_cohort")
+PMBB_DIR   = _os.path.join(_DATA_DIR, "PMBB_external")
 OUT_XL     = _os.path.join(BASE, "outputs", "tables")
 OUT_FIG    = _os.path.join(BASE, "outputs", "figures")
 _os.makedirs(OUT_XL,  exist_ok=True)
@@ -55,10 +62,21 @@ _os.makedirs(OUT_FIG, exist_ok=True)
 
 TRAIN_F  = _os.path.join(POAAGG_DIR, "271_training_cohort_4_new_PRS_cleaned.xlsx")
 SUSP_F   = _os.path.join(POAAGG_DIR, "1013_testing_cohort_only_suspect_cleaned.xlsx")
-PMBB_PHE = _os.path.join(PMBB_DIR,   "PMBB_3.0_pheno_covars_noPOAAGG.csv")
+PMBB_PHE = _os.path.join(PMBB_DIR,   "PMBB_3.0_pheno_covars_for_Yan_noPOAAGG_updated_June8.csv")
 PMBB_616 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt")
 PMBB_526 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt")
 PMBB_IOP_CDR = _os.path.join(PMBB_DIR, "PMBB_949_POAG_IOP_CDR_Freeze3.csv")
+
+# PMBB_F, PGS616_F and PGS526_F are used below but were never assigned,
+# here or in the public copy of this script, so the external half of the
+# asymmetry analysis has never run from this code. Restored from how the
+# variables are used: PMBB_F is read as the long-format phenotype table
+# (PMBB_ID / pheno_date / pheno_eye / pheno_type / pheno_value) and the two
+# score files are read with IID and SCORE1_AVG_STD.
+PMBB_F      = PMBB_IOP_CDR   # long-format IOP/CDR measurements
+PMBB_MAIN_F = PMBB_PHE       # per-participant covariates: ANCESTRY, age, SEX
+PGS616_F    = PMBB_616
+PGS526_F    = PMBB_526
 # ═══════════════════════════════════════════════════════════════
 
 LABEL      = "CaseCtrl"
@@ -112,6 +130,8 @@ print("=" * 60)
 print("Loading POAAGG training cohort ...")
 tr = pd.read_excel(TRAIN_F)
 su = pd.read_excel(SUSP_F)
+tr, su = int_pgs616(tr, su)
+tr = recompute_training_deltas(tr)      # 2026-09-10 audit B02
 y_tr = tr[LABEL].values.astype(int)
 print(f"  Train N={len(tr)}  cases={y_tr.sum()}  ctrl={(y_tr==0).sum()}")
 print(f"  Suspects N={len(su)}")
@@ -141,6 +161,7 @@ pgs526_df = pd.read_csv(PGS526_F, sep="\t")
 
 # AFR only
 pmbb_afr = pmbb_main[pmbb_main["ANCESTRY"] == "AFR"].copy()
+pmbb_afr = restrict_pmbb_age(pmbb_afr)
 
 # Clean CDR value: some entries are "0.6, 0.5" — take first number
 pmbb_raw["value_clean"] = (pmbb_raw["pheno_value"].astype(str)
@@ -417,7 +438,11 @@ ks_df = pd.DataFrame(ks_rows)
 # 8.  EXPORT TO EXCEL
 # ==================================================================
 print("\nSaving Excel ...")
-with pd.ExcelWriter(OUT_XL, engine="openpyxl") as w:
+# OUT_XL is created as a directory above and was then handed straight to
+# ExcelWriter as if it were a file, here and in the public copy, so this
+# script has never been able to save its results. Given a filename.
+OUT_XL_FILE = _os.path.join(OUT_XL, "Table_Asymmetry_AUC.xlsx")
+with pd.ExcelWriter(OUT_XL_FILE, engine="openpyxl") as w:
 
     # --- CV AUC (training) ---
     cv_df.to_excel(w, sheet_name="CV_AUC_Training", index=False)
@@ -463,7 +488,7 @@ with pd.ExcelWriter(OUT_XL, engine="openpyxl") as w:
     # --- Score stats ---
     pd.DataFrame(score_log).to_excel(w, sheet_name="Score_Statistics", index=False)
 
-print(f"  Saved: {OUT_XL}")
+print(f"  Saved: {OUT_XL_FILE}")
 
 
 # ==================================================================

@@ -44,8 +44,15 @@ BASE = _os.path.dirname(_os.path.abspath(__file__))
 # To override:  BASE = r"C:\your\path"   (Windows)
 #               BASE = "/your/path"        (macOS / Linux)
 
-POAAGG_DIR = _os.path.join(BASE, "data", "poaagg")
-PMBB_DIR   = _os.path.join(BASE, "data", "pmbb")
+# 2026-09-05: repointed from the repository's ./data layout at the
+# archived input data, and from ./outputs at this revision's outputs.
+import sys as _sys
+_sys.path.insert(0, BASE)
+from poag_paths import DATA_DIR as _DATA_DIR
+from poag_corrections import int_pgs616, int_pgs616_training_only
+
+POAAGG_DIR = _os.path.join(_DATA_DIR, "POAAGG_cohort")
+PMBB_DIR   = _os.path.join(_DATA_DIR, "PMBB_external")
 OUT_XL     = _os.path.join(BASE, "outputs", "tables")
 OUT_FIG    = _os.path.join(BASE, "outputs", "figures")
 _os.makedirs(OUT_XL,  exist_ok=True)
@@ -117,6 +124,7 @@ def make_pipeline(name):
 print("Loading data ...")
 tr   = pd.read_excel(TRAIN_F)
 su   = pd.read_excel(SUSP_F)
+tr, su = int_pgs616(tr, su)
 y_tr = tr[LABEL].values.astype(int)
 print(f"  Train N={len(tr)}  cases={y_tr.sum()}  ctrl={(y_tr==0).sum()}")
 print(f"  Suspects N={len(su)}")

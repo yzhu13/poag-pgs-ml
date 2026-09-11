@@ -48,8 +48,15 @@ BASE = _os.path.dirname(_os.path.abspath(__file__))
 # To override:  BASE = r"C:\your\path"   (Windows)
 #               BASE = "/your/path"        (macOS / Linux)
 
-POAAGG_DIR = _os.path.join(BASE, "data", "poaagg")
-PMBB_DIR   = _os.path.join(BASE, "data", "pmbb")
+# 2026-09-05: repointed from the repository's ./data layout at the archived
+# input data, and from ./outputs at the working outputs this revision uses.
+import sys as _sys
+_sys.path.insert(0, BASE)
+from poag_paths import DATA_DIR as _DATA_DIR
+from poag_corrections import int_pgs616, restrict_pmbb_age
+
+POAAGG_DIR = _os.path.join(_DATA_DIR, "POAAGG_cohort")
+PMBB_DIR   = _os.path.join(_DATA_DIR, "PMBB_external")
 OUT_XL     = _os.path.join(BASE, "outputs", "tables")
 OUT_FIG    = _os.path.join(BASE, "outputs", "figures")
 _os.makedirs(OUT_XL,  exist_ok=True)
@@ -57,7 +64,7 @@ _os.makedirs(OUT_FIG, exist_ok=True)
 
 TRAIN_F  = _os.path.join(POAAGG_DIR, "271_training_cohort_4_new_PRS_cleaned.xlsx")
 SUSP_F   = _os.path.join(POAAGG_DIR, "1013_testing_cohort_only_suspect_cleaned.xlsx")
-PMBB_PHE = _os.path.join(PMBB_DIR,   "PMBB_3.0_pheno_covars_noPOAAGG.csv")
+PMBB_PHE = _os.path.join(PMBB_DIR,   "PMBB_3.0_pheno_covars_for_Yan_noPOAAGG_updated_June8.csv")
 PMBB_616 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_MEGA_616snps_AllSamples.sscore_withSTDscore.txt")
 PMBB_526 = _os.path.join(PMBB_DIR,   "PMBBv3_GRS_QUANT_526snps_AllSamples.sscore_withSTDscore.txt")
 PMBB_IOP_CDR = _os.path.join(PMBB_DIR, "PMBB_949_POAG_IOP_CDR_Freeze3.csv")
@@ -136,7 +143,10 @@ def summarise(vals):
                 Mean_95CI=f"{mn:.3f} ({lo:.3f}-{hi:.3f})")
 
 
-def boot_auc(yt, ys, n=1000, seed=42):
+# 2026-09-05: n was 1000, while STAR Methods states B = 2,000 for the
+# external cohort. Unified at 2,000 so every external interval in the
+# paper rests on the same number of replicates.
+def boot_auc(yt, ys, n=2000, seed=42):
     rng = np.random.RandomState(seed)
     bs  = [roc_auc_score(yt[i:=rng.choice(len(yt),len(yt),replace=True)], ys[i])
            for _ in range(n) if len(np.unique(yt[
@@ -152,6 +162,7 @@ def boot_auc(yt, ys, n=1000, seed=42):
 print("Loading data ...")
 tr   = pd.read_excel(TRAIN_F)
 su   = pd.read_excel(SUSP_F)
+tr, su = int_pgs616(tr, su)
 y_tr = tr[LABEL].values.astype(int)
 n_tr = len(y_tr)
 print(f"  Train N={n_tr}  cases={y_tr.sum()}  ctrl={(y_tr==0).sum()}")
@@ -165,6 +176,7 @@ pmbb = (pmbb_phe.merge(p616,on="PMBB_ID").merge(p526,on="PMBB_ID"))
 pmbb = pmbb[pmbb["ANCESTRY"]=="AFR"].dropna(
        subset=["POAG_cases","PGS616","PGS526"]).copy()
 pmbb["POAG_cases"] = pmbb["POAG_cases"].astype(int)
+pmbb = restrict_pmbb_age(pmbb)
 y_pmbb = pmbb["POAG_cases"].values
 print(f"  PMBB AFR N={len(pmbb):,}  cases={y_pmbb.sum()}  "
       f"ctrl={(y_pmbb==0).sum()}")
@@ -310,8 +322,19 @@ def panel_label(ax, lbl, dx=-0.10, dy=1.04):
             fontsize=15, fontweight="bold", va="top")
 
 # ── 2A : chromosome bar chart (load existing PNG) ─────────────
-img = mpimg.imread(FIG_2A)
-ax_a.imshow(img)
+# FIG_2A is referenced but never assigned, here or in the public copy of
+# this script, so the combined figure has never been reproducible from
+# code — panel A exists only inside the shipped composite. Guarded so the
+# rest of the script (in particular the separate panel 2D used for the
+# external results) still runs; the composite written below goes to the
+# working outputs and is not the submitted figure.
+FIG_2A = globals().get("FIG_2A")
+if FIG_2A and _os.path.exists(FIG_2A):
+    ax_a.imshow(mpimg.imread(FIG_2A))
+else:
+    ax_a.text(0.5, 0.5, "panel A source image not available to this script",
+              ha="center", va="center", fontsize=9, color="#888888",
+              transform=ax_a.transAxes)
 ax_a.axis("off")
 panel_label(ax_a, "A", dx=-0.03)
 

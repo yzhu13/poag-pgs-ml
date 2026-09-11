@@ -51,8 +51,15 @@ BASE = _os.path.dirname(_os.path.abspath(__file__))
 # To override:  BASE = r"C:\your\path"   (Windows)
 #               BASE = "/your/path"        (macOS / Linux)
 
-POAAGG_DIR = _os.path.join(BASE, "data", "poaagg")
-PMBB_DIR   = _os.path.join(BASE, "data", "pmbb")
+# 2026-09-05: repointed from the repository's ./data layout at the
+# archived input data, and from ./outputs at this revision's outputs.
+import sys as _sys
+_sys.path.insert(0, BASE)
+from poag_paths import DATA_DIR as _DATA_DIR
+from poag_corrections import int_pgs616, int_pgs616_training_only
+
+POAAGG_DIR = _os.path.join(_DATA_DIR, "POAAGG_cohort")
+PMBB_DIR   = _os.path.join(_DATA_DIR, "PMBB_external")
 OUT_XL     = _os.path.join(BASE, "outputs", "tables")
 OUT_FIG    = _os.path.join(BASE, "outputs", "figures")
 _os.makedirs(OUT_XL,  exist_ok=True)
@@ -137,6 +144,7 @@ def ci95(vals):
 # ── Load data ─────────────────────────────────────────────────
 print("Loading training data ...")
 tr   = pd.read_excel(TRAIN_F)
+tr = int_pgs616_training_only(tr)
 y_tr = tr[LABEL].values.astype(int)
 print(f"  N={len(tr)}, cases={y_tr.sum()}, controls={(y_tr==0).sum()}")
 
@@ -206,6 +214,10 @@ for fs_name, cols in FEATURE_SETS.items():
             "Train_CI_lo": round(lo_tr, 4), "Train_CI_hi": round(hi_tr, 4),
             "CV_AUC": round(mn_te, 4),
             "CV_CI_lo": round(lo_te, 4), "CV_CI_hi": round(hi_te, 4),
+            # descriptive spread across fits; the fold-based CI columns are
+            # not interval estimates (A03) and are dropped from Table S13
+            "Train_SD": round(float(np.std(all_train_scores[frac], ddof=1)), 4),
+            "CV_SD": round(float(np.std(all_test_scores[frac], ddof=1)), 4),
         })
         # Per-model rows
         for mn in MODEL_NAMES:
@@ -366,8 +378,8 @@ for fs_name in FEATURE_SETS:
         continue
     x  = sub["N_train_approx"].values
     y  = sub["CV_AUC"].values
-    lo = sub["CV_CI_lo"].values
-    hi = sub["CV_CI_hi"].values
+    lo = y - sub["CV_SD"].values
+    hi = y + sub["CV_SD"].values
     color = FS_COLORS[fs_name]
     ls    = FS_STYLES[fs_name]
     ax4a.plot(x, y, color=color, linestyle=ls, linewidth=2.0,
@@ -376,7 +388,7 @@ for fs_name in FEATURE_SETS:
 
 ax4a.axhline(0.5, color="dimgrey", linewidth=0.9, linestyle=":", zorder=1)
 ax4a.set_xlabel("Approximate Training Set Size (N)", fontsize=10)
-ax4a.set_ylabel("Cross-Validation AUC (mean ± 95% CI)", fontsize=10)
+ax4a.set_ylabel("Cross-Validation AUC (mean ± SD across fits)", fontsize=10)
 ax4a.set_title("Learning Curves — Average Classifier\n(5-fold × 4-repeat CV, POAAGG N=271)",
                fontsize=10, fontweight="bold")
 ax4a.legend(frameon=True, framealpha=0.9, fontsize=8.5, loc="lower right")
@@ -420,7 +432,7 @@ ax4b.text(-0.12, 1.06, "B", transform=ax4b.transAxes,
 # suptitle removed per journal style
 
 for ext in ["png", "pdf"]:
-    fig4.savefig(_os.path.join(OUT_FIG, "SF4_LearningCurves.{ext}"),
+    fig4.savefig(_os.path.join(OUT_FIG, f"SF4_LearningCurves.{ext}"),
                  bbox_inches="tight", dpi=300)
     print(f"  Saved SF4_LearningCurves.{ext}")
 plt.close(fig4)
@@ -516,7 +528,7 @@ ax5.legend(handles=handles, frameon=True, framealpha=0.9,
 # suptitle removed per journal style
 
 for ext in ["png", "pdf"]:
-    fig5.savefig(_os.path.join(OUT_FIG, "SF5_SexStratified.{ext}"),
+    fig5.savefig(_os.path.join(OUT_FIG, f"SF5_SexStratified.{ext}"),
                  bbox_inches="tight", dpi=300)
     print(f"  Saved SF5_SexStratified.{ext}")
 plt.close(fig5)
